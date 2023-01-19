@@ -28,6 +28,11 @@ func ParseContent(fileContent string) error {
 	}
 
 	header := message.Header
+	body, err := ioutil.ReadAll(message.Body)
+
+	if err != nil {
+		return err
+	}
 
 	email := Email{
 		MessageId: header.Get("Message-ID"),
@@ -38,7 +43,7 @@ func ParseContent(fileContent string) error {
 		FromName:  header.Get("X-From"),
 		Cc:        strings.Split(header.Get("X-cc"), ","),
 		Bcc:       strings.Split(header.Get("X-bcc"), ","),
-		Body:      ioutil.ReadAll(message.Body),
+		Body:      string(body),
 	}
 
 	fmt.Print(email.To[0], "\n")
