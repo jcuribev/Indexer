@@ -18,5 +18,5 @@ func main() {
 
 	fmt.Println("Selected tgz:", flag.Arg(0))
 
-	file.ProcessFile(sourceFile)
+	file.OpenTgzFile(sourceFile)
 }
