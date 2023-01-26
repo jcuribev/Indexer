@@ -2,16 +2,18 @@ package file
 
 import (
 	"Indexer/email"
+	"Indexer/json_manager"
 	"archive/tar"
 	"compress/gzip"
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 )
 
-const numberOfHeaders = 15
+const MaxItemsPerJson = 50000
 
-func ProcessFile(sourceFile string) {
+func OpenTgzFile(sourceFile string) {
 
 	file, err := os.Open(sourceFile)
 	if err != nil {
@@ -27,15 +29,19 @@ func ProcessFile(sourceFile string) {
 		os.Exit(1)
 	}
 
-	defer gzf.Close()
-
 	tarReader := tar.NewReader(gzf)
+	readFiles(*tarReader)
+}
 
-	i := 0
+func readFiles(tarReader tar.Reader) {
+
+	items := 0
+	fileNumber := 0
+	jsonFile := json_manager.CreateJsonFile(strconv.Itoa(fileNumber))
+	InitFile(jsonFile)
 
 	for {
 		file, err := tarReader.Next()
-
 		if err == io.EOF {
 			break
 		}
@@ -51,22 +57,43 @@ func ProcessFile(sourceFile string) {
 			continue
 
 		case tar.TypeReg:
-			fileContent, err := io.ReadAll(tarReader)
+			fileContent, err := io.ReadAll(&tarReader)
 			if err != nil {
 				fmt.Println(err)
-				os.Exit((1))
+				continue
 			}
 
-			email.ParseContent(string(fileContent))
+			if err := convertContent(string(fileContent), jsonFile); err != nil {
+				StoreMalformedFile(file)
+				continue
+			}
 
-			if i == 1 {
-				os.Exit(0)
+			items++
+			if items >= MaxItemsPerJson {
+				items = 0
+				fileNumber++
+				FinishFile(jsonFile)
+
+				jsonFile = json_manager.CreateJsonFile(strconv.Itoa(fileNumber))
 			}
 
 		default:
 			fmt.Printf("%s : %s\n", "Cannot read this file: ", file.Name)
 		}
-
-		i++
 	}
+}
+
+func convertContent(fileContent string, jsonFile *os.File) error {
+	email, err := email.ParseContent(string(fileContent))
+
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	json := json_manager.EmailToJson(email)
+
+	WriteEmailToFile(json, jsonFile)
+
+	return nil
 }
