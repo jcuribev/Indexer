@@ -19,21 +19,7 @@ type Email struct {
 	Body      string   `json:"body"`
 }
 
-func ParseContent(fileContent string) error {
-	reader := strings.NewReader(fileContent)
-	message, err := mail.ReadMessage(reader)
-
-	if err != nil {
-		return err
-	}
-
-	header := message.Header
-	body, err := ioutil.ReadAll(message.Body)
-
-	if err != nil {
-		return err
-	}
-
+func NewEmail(header mail.Header, body []byte) Email {
 	email := Email{
 		MessageId: header.Get("Message-ID"),
 		Date:      header.Get("Date"),
@@ -46,7 +32,25 @@ func ParseContent(fileContent string) error {
 		Body:      string(body),
 	}
 
-	fmt.Print(email.To[0], "\n")
+	return email
+}
 
-	return fmt.Errorf("no")
+func ParseContent(fileContent string) (Email, error) {
+	reader := strings.NewReader(fileContent)
+	message, err := mail.ReadMessage(reader)
+
+	if message == nil {
+		fmt.Print(err)
+		return Email{}, err
+	}
+
+	header := message.Header
+	body, err := ioutil.ReadAll(message.Body)
+
+	if err != nil {
+		fmt.Print(err)
+		return Email{}, err
+	}
+
+	return NewEmail(header, body), nil
 }
