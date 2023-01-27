@@ -10,9 +10,13 @@ import (
 const malformedFilesDir = "./MalformedEmails/"
 const indexEmailsDir = "./IndexEmails/emails"
 
-func WriteEmailToFile(json []byte, jsonFile *os.File) {
+func WriteEmailToFile(json []byte, isFirstFile bool, jsonFile *os.File) {
+
+	if !isFirstFile == true {
+		jsonFile.Write([]byte(",\n"))
+	}
 	jsonFile.Write(json)
-	jsonFile.Write([]byte(",\n"))
+
 }
 
 func CreateJsonFile(fileNumber string) *os.File {

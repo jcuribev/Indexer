@@ -42,6 +42,8 @@ func readFiles(tarReader tar.Reader) {
 	jsonFile := CreateJsonFile(strconv.Itoa(fileNumber))
 	json_manager.InitFile(jsonFile)
 
+	isFirstFile := true
+
 	for {
 		file, err := tarReader.Next()
 		if err == io.EOF {
@@ -65,10 +67,12 @@ func readFiles(tarReader tar.Reader) {
 				continue
 			}
 
-			if err := convertContent(string(fileContent), jsonFile); err != nil {
+			if err := convertContent(string(fileContent), isFirstFile, jsonFile); err != nil {
 				StoreMalformedFile(file, fileContent)
 				continue
 			}
+
+			isFirstFile = false
 
 			items++
 			if items >= maxItemsPerJson {
@@ -81,6 +85,8 @@ func readFiles(tarReader tar.Reader) {
 				jsonFile = CreateJsonFile(strconv.Itoa(fileNumber))
 
 				json_manager.InitFile(jsonFile)
+
+				isFirstFile = true
 			}
 
 		default:
@@ -91,7 +97,7 @@ func readFiles(tarReader tar.Reader) {
 	json_manager.FinishFile(jsonFile)
 }
 
-func convertContent(fileContent string, jsonFile *os.File) error {
+func convertContent(fileContent string, isFirstFile bool, jsonFile *os.File) error {
 	email, err := email.ParseContent(string(fileContent))
 
 	if err != nil {
@@ -101,7 +107,7 @@ func convertContent(fileContent string, jsonFile *os.File) error {
 
 	json := json_manager.EmailToJson(email)
 
-	WriteEmailToFile(json, jsonFile)
+	WriteEmailToFile(json, isFirstFile, jsonFile)
 
 	return nil
 }
