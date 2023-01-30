@@ -10,7 +10,6 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"os"
-	"strconv"
 )
 
 const maxItemsPerJson = 50000
@@ -39,10 +38,10 @@ func readFiles(tarReader tar.Reader) {
 
 	items := 0
 	fileNumber := 0
-	jsonFile := CreateJsonFile(strconv.Itoa(fileNumber))
-	json_manager.InitFile(jsonFile)
-
 	isFirstFile := true
+
+	jsonFile := CreateJsonFile(fileNumber)
+	json_manager.InitFile(jsonFile)
 
 	for {
 		file, err := tarReader.Next()
@@ -52,7 +51,6 @@ func readFiles(tarReader tar.Reader) {
 
 		if err != nil {
 			fmt.Println(err)
-			os.Exit(1)
 		}
 
 		switch file.Typeflag {
@@ -62,31 +60,21 @@ func readFiles(tarReader tar.Reader) {
 
 		case tar.TypeReg:
 			fileContent, err := io.ReadAll(&tarReader)
+
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 
-			if err := convertContent(string(fileContent), isFirstFile, jsonFile); err != nil {
+			if err := convertContent(fileContent, &isFirstFile, jsonFile); err != nil {
 				StoreMalformedFile(file, fileContent)
 				continue
 			}
 
-			isFirstFile = false
-
 			items++
+
 			if items >= maxItemsPerJson {
-				items = 0
-				fileNumber++
-				json_manager.FinishFile(jsonFile)
-
-				jsonFile.Close()
-
-				jsonFile = CreateJsonFile(strconv.Itoa(fileNumber))
-
-				json_manager.InitFile(jsonFile)
-
-				isFirstFile = true
+				jsonFile = nextFile(&items, &fileNumber, jsonFile, &isFirstFile)
 			}
 
 		default:
@@ -95,9 +83,28 @@ func readFiles(tarReader tar.Reader) {
 	}
 
 	json_manager.FinishFile(jsonFile)
+	jsonFile.Close()
 }
 
-func convertContent(fileContent string, isFirstFile bool, jsonFile *os.File) error {
+func nextFile(items *int, fileNumber *int, jsonFile *os.File, isFirstFile *bool) *os.File {
+
+	*items = 0
+	json_manager.FinishFile(jsonFile)
+	jsonFile.Close()
+
+	*fileNumber++
+
+	fmt.Println(*fileNumber)
+
+	jsonFile = CreateJsonFile(*fileNumber)
+	json_manager.InitFile(jsonFile)
+
+	*isFirstFile = true
+
+	return jsonFile
+}
+
+func convertContent(fileContent []byte, isFirstFile *bool, jsonFile *os.File) error {
 	email, err := email.ParseContent(string(fileContent))
 
 	if err != nil {
