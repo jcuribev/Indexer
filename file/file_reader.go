@@ -74,7 +74,7 @@ func readFiles(tarReader tar.Reader) {
 			items++
 
 			if items >= maxItemsPerJson {
-				jsonFile = nextFile(&items, &fileNumber, jsonFile, &isFirstFile)
+				jsonFile = changeFile(&items, &fileNumber, jsonFile, &isFirstFile)
 			}
 
 		default:
@@ -86,7 +86,7 @@ func readFiles(tarReader tar.Reader) {
 	jsonFile.Close()
 }
 
-func nextFile(items *int, fileNumber *int, jsonFile *os.File, isFirstFile *bool) *os.File {
+func changeFile(items *int, fileNumber *int, jsonFile *os.File, isFirstFile *bool) *os.File {
 
 	*items = 0
 	json_manager.FinishFile(jsonFile)
