@@ -13,9 +13,6 @@ type Email struct {
 	From      string   `json:"from"`
 	To        []string `json:"to"`
 	Subject   string   `json:"subject"`
-	FromName  string   `json:"fromName"`
-	Cc        []string `json:"cc"`
-	Bcc       []string `json:"bcc"`
 	Body      string   `json:"body"`
 }
 
@@ -26,9 +23,6 @@ func NewEmail(header mail.Header, body []byte) Email {
 		From:      header.Get("From"),
 		To:        strings.Split(header.Get("To"), ","),
 		Subject:   header.Get("Subject"),
-		FromName:  header.Get("X-From"),
-		Cc:        strings.Split(header.Get("X-cc"), ","),
-		Bcc:       strings.Split(header.Get("X-bcc"), ","),
 		Body:      string(body),
 	}
 
