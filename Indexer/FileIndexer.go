@@ -5,8 +5,6 @@ import (
 	"Indexer/file"
 	"Indexer/json_manager"
 	"archive/tar"
-	"errors"
-	"fmt"
 	"io"
 	"os"
 )
@@ -33,7 +31,8 @@ func IterateTarReader(tarReader *tar.Reader) error {
 		tarHeader, err := tarReader.Next()
 
 		if err == io.EOF {
-			return err
+			EndJsonFile(fileInfo.jsonFile)
+			break
 		}
 
 		if err != nil {
@@ -42,17 +41,21 @@ func IterateTarReader(tarReader *tar.Reader) error {
 
 		if fileInfo.jsonFile == nil {
 			fileInfo.jsonFile, err = file.CreateJsonFile(fileInfo.fileNumber)
+
+			if err != nil {
+				return err
+			}
 		}
 
 		if tarHeader.Typeflag != tar.TypeReg {
-			fmt.Printf("err: %v\n", errors.New("Unsupported file"))
+			//fmt.Printf("err: %v\n", errors.New("Unsupported file"))
 			continue
 		}
 
 		if err := HandleFile(tarReader, &fileInfo); err == nil {
 			fileInfo.isFirstEntry = false
 			fileInfo.entriesWritten++
-		} else if err := HandleBadFile(tarReader, tarHeader); err == nil {
+		} else if err := HandleBadFile(tarReader, tarHeader); err != nil {
 			return err
 		}
 
@@ -65,6 +68,8 @@ func IterateTarReader(tarReader *tar.Reader) error {
 		}
 		NewFileInformation(&fileInfo)
 	}
+
+	return nil
 }
 
 func EndJsonFile(file *os.File) error {

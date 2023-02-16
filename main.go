@@ -5,42 +5,44 @@ import (
 	"Indexer/file"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"runtime"
 	"runtime/pprof"
 )
 
-var cpuProfile = flag.String("cpuprofile", "", "write cpu profile to `file`")
-var memProfile = flag.String("memprofile", "", "write memory profile to `file`")
-
 func main() {
 
-	flag.Parse()
 	if err := initializeProgram(); err != nil {
+		fmt.Printf("err: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 func initializeProgram() error {
 
+	sourceFile := flag.String("file", "", "read file")
+	cpuProfile := flag.String("cpuprofile", "", "write cpu profile to `file`")
+	memProfile := flag.String("memprofile", "", "write memory profile to `file`")
+	flag.Parse()
+	println(*cpuProfile)
+
 	cpuFile, err := handleProfileFlag(*cpuProfile)
 	if err != nil {
 		return err
 	}
-	cpuFile.Close()
+	defer cpuFile.Close()
 
 	if err := pprof.StartCPUProfile(cpuFile); err != nil {
 		return errors.New("could not start CPU profile: " + err.Error())
 	}
 	defer pprof.StopCPUProfile()
 
-	sourceFile := flag.Arg(0)
-
-	if sourceFile == "" {
+	if *sourceFile == "" {
 		return errors.New("Missing file argument.")
 	}
 
-	if err := runProgram(sourceFile); err != nil {
+	if err := runProgram(*sourceFile); err != nil {
 		return err
 	}
 
@@ -79,11 +81,13 @@ func runProgram(sourceFile string) error {
 
 func handleProfileFlag(fileName string) (*os.File, error) {
 	if fileName == "" {
+		println("aaa")
 		return nil, nil
 	}
 
 	f, err := file.CreateProfileFile(fileName)
 	if err != nil {
+
 		return nil, err
 	}
 

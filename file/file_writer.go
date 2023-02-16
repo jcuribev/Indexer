@@ -12,13 +12,9 @@ const malformedFilesDir = "./MalformedEmails/"
 const indexEmailsDir = "./IndexEmails/emails"
 
 func WriteEmailToFile(json []byte, isFirstFile *bool, jsonFile *os.File) error {
-
 	if *isFirstFile == true {
 		*isFirstFile = false
-		return nil
-	}
-
-	if _, err := jsonFile.Write([]byte(",\n")); err != nil {
+	} else if _, err := jsonFile.Write([]byte(",\n")); err != nil {
 		return err
 	}
 
@@ -52,7 +48,7 @@ func CreateJsonFile(fileNumber int) (*os.File, error) {
 
 func StoreMalformedFile(tarHeader *tar.Header, fileContent []byte) error {
 
-	fileDir, err := filepath.Abs(malformedFilesDir + tarHeader.Name)
+	fileDir, err := filepath.Abs(malformedFilesDir + tarHeader.FileInfo().Name())
 
 	if err != nil {
 		return err

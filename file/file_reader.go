@@ -16,8 +16,6 @@ func GetTgzReader(sourceFileDir string) (*tar.Reader, error) {
 		return nil, err
 	}
 
-	defer file.Close()
-
 	gzf, err := gzip.NewReader(file)
 	if err != nil {
 		return nil, err

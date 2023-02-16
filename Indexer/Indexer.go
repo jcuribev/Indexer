@@ -43,8 +43,6 @@ func IndexEmailsToDatabase() error {
 			fmt.Printf("err: %v\n", err)
 		}
 		defer response.Body.Close()
-
-		fmt.Printf(file.Name())
 	}
 
 	return nil
