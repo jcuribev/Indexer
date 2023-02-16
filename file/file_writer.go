@@ -1,8 +1,8 @@
 package file
 
 import (
+	"Indexer/json_manager"
 	"archive/tar"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -11,40 +11,75 @@ import (
 const malformedFilesDir = "./MalformedEmails/"
 const indexEmailsDir = "./IndexEmails/emails"
 
-func WriteEmailToFile(json []byte, isFirstFile *bool, jsonFile *os.File) {
+func WriteEmailToFile(json []byte, isFirstFile *bool, jsonFile *os.File) error {
 
 	if *isFirstFile == true {
 		*isFirstFile = false
-	} else {
-		jsonFile.Write([]byte(",\n"))
+		return nil
 	}
-	jsonFile.Write(json)
 
+	if _, err := jsonFile.Write([]byte(",\n")); err != nil {
+		return err
+	}
+
+	if _, err := jsonFile.Write(json); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func CreateJsonFile(fileNumber int) *os.File {
+func CreateJsonFile(fileNumber int) (*os.File, error) {
 
-	fileDir, _ := filepath.Abs(indexEmailsDir + strconv.Itoa(fileNumber) + ".ndjson")
+	fileDir, err := filepath.Abs(indexEmailsDir + strconv.Itoa(fileNumber) + ".ndjson")
+
+	if err != nil {
+		return nil, err
+	}
+
+	jsonFile, err := os.Create(fileDir)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json_manager.InitFile(jsonFile); err != nil {
+		return nil, err
+	}
+
+	return jsonFile, nil
+}
+
+func StoreMalformedFile(tarHeader *tar.Header, fileContent []byte) error {
+
+	fileDir, err := filepath.Abs(malformedFilesDir + tarHeader.Name)
+
+	if err != nil {
+		return err
+	}
+
 	file, err := os.Create(fileDir)
 
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
-	return file
-}
-
-func StoreMalformedFile(malformedFile *tar.Header, fileContent []byte) {
-
-	fileDir, _ := filepath.Abs(malformedFilesDir + malformedFile.FileInfo().Name())
-	file, err := os.Create(fileDir)
-
-	defer file.Close()
+	_, err = file.Write(fileContent)
 
 	if err != nil {
-		fmt.Println(err)
-	} else {
-		file.Write(fileContent)
+		return err
 	}
+
+	file.Close()
+
+	return nil
+}
+
+func CreateProfileFile(fileName string) (*os.File, error) {
+	f, err := os.Create(fileName)
+
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
 }
