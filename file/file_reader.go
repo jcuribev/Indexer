@@ -1,130 +1,49 @@
 package file
 
 import (
-	"Indexer/email"
-	"Indexer/json_manager"
 	"archive/tar"
 	"compress/gzip"
-	"fmt"
 	"io"
 	"io/fs"
 	"io/ioutil"
 	"os"
 )
 
-const maxItemsPerJson = 50000
-
-func OpenTgzFile(sourceFileDir string) {
+func GetTgzReader(sourceFileDir string) (*tar.Reader, error) {
 
 	file, err := os.Open(sourceFileDir)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return nil, err
 	}
 
 	defer file.Close()
 
 	gzf, err := gzip.NewReader(file)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return nil, err
 	}
 
 	tarReader := tar.NewReader(gzf)
-	readFiles(*tarReader)
+	return tarReader, nil
 }
 
-func readFiles(tarReader tar.Reader) {
+func ReadFileContent(tarReader *tar.Reader) ([]byte, error) {
 
-	items := 0
-	fileNumber := 0
-	isFirstFile := true
-
-	jsonFile := CreateJsonFile(fileNumber)
-	json_manager.InitFile(jsonFile)
-
-	for {
-		file, err := tarReader.Next()
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		switch file.Typeflag {
-
-		case tar.TypeDir:
-			continue
-
-		case tar.TypeReg:
-			fileContent, err := io.ReadAll(&tarReader)
-
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			if err := convertContent(fileContent, &isFirstFile, jsonFile); err != nil {
-				StoreMalformedFile(file, fileContent)
-				continue
-			}
-
-			items++
-
-			if items >= maxItemsPerJson {
-				jsonFile = changeFile(&items, &fileNumber, jsonFile, &isFirstFile)
-			}
-
-		default:
-			fmt.Printf("%s : %s\n", "Cannot read this file: ", file.Name)
-		}
-	}
-
-	json_manager.FinishFile(jsonFile)
-	jsonFile.Close()
-}
-
-func changeFile(items *int, fileNumber *int, jsonFile *os.File, isFirstFile *bool) *os.File {
-
-	*items = 0
-	json_manager.FinishFile(jsonFile)
-	jsonFile.Close()
-
-	*fileNumber++
-
-	fmt.Println(*fileNumber)
-
-	jsonFile = CreateJsonFile(*fileNumber)
-	json_manager.InitFile(jsonFile)
-
-	*isFirstFile = true
-
-	return jsonFile
-}
-
-func convertContent(fileContent []byte, isFirstFile *bool, jsonFile *os.File) error {
-	email, err := email.ParseContent(string(fileContent))
+	fileContent, err := io.ReadAll(tarReader)
 
 	if err != nil {
-		fmt.Println(err)
-		return err
+		return nil, err
 	}
 
-	json := json_manager.EmailToJson(email)
-
-	WriteEmailToFile(json, isFirstFile, jsonFile)
-
-	return nil
+	return fileContent, nil
 }
 
-func ReadFilesFromDirectory(dir string) []fs.FileInfo {
+func ReadFilesFromDirectory(dir string) ([]fs.FileInfo, error) {
 	fileNames, err := ioutil.ReadDir(dir)
 
 	if err != nil {
-		fmt.Println(err)
+		return nil, err
 	}
 
-	return fileNames
+	return fileNames, nil
 }
