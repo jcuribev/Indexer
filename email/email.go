@@ -29,7 +29,7 @@ func NewEmail(header mail.Header, body []byte) Email {
 	return email
 }
 
-func ParseContent(fileContent string) (Email, error) {
+func FileContentToEmail(fileContent string) (Email, error) {
 	reader := strings.NewReader(fileContent)
 	message, err := mail.ReadMessage(reader)
 
