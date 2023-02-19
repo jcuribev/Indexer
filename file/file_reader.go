@@ -3,25 +3,26 @@ package file
 import (
 	"archive/tar"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"io/fs"
 	"io/ioutil"
 	"os"
 )
 
-func GetTgzReader(sourceFileDir string) (*tar.Reader, error) {
+func OpenSourceFile(sourceFile string) (*os.File, error) {
+	return os.Open(sourceFile)
+}
 
-	file, err := os.Open(sourceFileDir)
+func GetTgzReader(tgzFile *os.File) (*tar.Reader, error) {
+
+	gZipReader, err := gzip.NewReader(tgzFile)
 	if err != nil {
 		return nil, err
 	}
 
-	gzf, err := gzip.NewReader(file)
-	if err != nil {
-		return nil, err
-	}
+	tarReader := tar.NewReader(gZipReader)
 
-	tarReader := tar.NewReader(gzf)
 	return tarReader, nil
 }
 
@@ -30,6 +31,7 @@ func ReadFileContent(tarReader *tar.Reader) ([]byte, error) {
 	fileContent, err := io.ReadAll(tarReader)
 
 	if err != nil {
+		fmt.Println("Read file content failed")
 		return nil, err
 	}
 
