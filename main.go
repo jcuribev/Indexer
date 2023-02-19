@@ -11,10 +11,14 @@ import (
 	"runtime/pprof"
 )
 
+var (
+	missingFileFlagErr = errors.New("Missing file argument.")
+)
+
 func main() {
 
 	if err := initializeProgram(); err != nil {
-		fmt.Printf("err: %v\n", err)
+		fmt.Printf("\nerr: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -27,6 +31,10 @@ func initializeProgram() error {
 	flag.Parse()
 	println(*cpuProfile)
 
+	if *sourceFile == "" {
+		return missingFileFlagErr
+	}
+
 	cpuFile, err := handleProfileFlag(*cpuProfile)
 	if err != nil {
 		return err
@@ -37,10 +45,6 @@ func initializeProgram() error {
 		return errors.New("could not start CPU profile: " + err.Error())
 	}
 	defer pprof.StopCPUProfile()
-
-	if *sourceFile == "" {
-		return errors.New("Missing file argument.")
-	}
 
 	if err := runProgram(*sourceFile); err != nil {
 		return err
@@ -63,7 +67,12 @@ func initializeProgram() error {
 
 func runProgram(sourceFile string) error {
 
-	tarReader, err := file.GetTgzReader(sourceFile)
+	tgzFile, err := file.OpenSourceFile(sourceFile)
+	if err != nil {
+		return err
+	}
+
+	tarReader, err := file.GetTgzReader(tgzFile)
 	if err != nil {
 		return err
 	}
@@ -71,6 +80,8 @@ func runProgram(sourceFile string) error {
 	if err := Indexer.IterateTarReader(tarReader); err != nil {
 		return err
 	}
+
+	tgzFile.Close()
 
 	if err := Indexer.IndexEmailsToDatabase(); err != nil {
 		return err
@@ -81,15 +92,14 @@ func runProgram(sourceFile string) error {
 
 func handleProfileFlag(fileName string) (*os.File, error) {
 	if fileName == "" {
-		println("aaa")
+		fmt.Printf("No Profile name provided\n")
 		return nil, nil
 	}
 
-	f, err := file.CreateProfileFile(fileName)
+	profileFile, err := file.CreateProfileFile(fileName)
 	if err != nil {
-
 		return nil, err
 	}
 
-	return f, nil
+	return profileFile, nil
 }
