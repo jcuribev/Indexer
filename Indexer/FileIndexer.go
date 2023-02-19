@@ -5,6 +5,7 @@ import (
 	"Indexer/file"
 	"Indexer/json_manager"
 	"archive/tar"
+	"fmt"
 	"io"
 	"os"
 )
@@ -12,121 +13,136 @@ import (
 type FileInformation struct {
 	entriesWritten int
 	fileNumber     int
-	isFirstEntry   bool
 	jsonFile       *os.File
+	isFirstEntry   bool
 }
 
 const maxEntriesPerJson = 50000
 
 func IterateTarReader(tarReader *tar.Reader) error {
 
-	fileInfo := FileInformation{
-		entriesWritten: 0,
-		fileNumber:     0,
-		isFirstEntry:   true,
-		jsonFile:       nil,
-	}
+	fileInfo := newFileInformation()
 
 	for {
 		tarHeader, err := tarReader.Next()
-
 		if err == io.EOF {
-			EndJsonFile(fileInfo.jsonFile)
+			endJsonFile(fileInfo.jsonFile)
 			break
 		}
 
 		if err != nil {
+			fmt.Println("Getting next TarHaeader failed")
 			return err
-		}
-
-		if fileInfo.jsonFile == nil {
-			fileInfo.jsonFile, err = file.CreateJsonFile(fileInfo.fileNumber)
-
-			if err != nil {
-				return err
-			}
 		}
 
 		if tarHeader.Typeflag != tar.TypeReg {
-			//fmt.Printf("err: %v\n", errors.New("Unsupported file"))
 			continue
 		}
 
-		if err := HandleFile(tarReader, &fileInfo); err == nil {
-			fileInfo.isFirstEntry = false
-			fileInfo.entriesWritten++
-		} else if err := HandleBadFile(tarReader, tarHeader); err != nil {
+		fileInfo.jsonFile, err = file.CreateJsonFile(fileInfo.fileNumber, fileInfo.jsonFile)
+		if err != nil {
 			return err
 		}
 
-		if fileInfo.entriesWritten != maxEntriesPerJson {
+		err = createJsonEmailAndWriteToFile(tarReader, &fileInfo)
+		if err != nil {
+			err := handleEmailError(tarReader, tarHeader)
+			if err != nil {
+				return err
+			}
 			continue
 		}
 
-		if err := EndJsonFile(fileInfo.jsonFile); err != nil {
+		fileInfo = registerNewFileEntry(fileInfo)
+
+		if !hasReachedMaxEntries(fileInfo.entriesWritten) {
+			continue
+		}
+
+		fileInfo, err = changeFileForNextEntries(fileInfo)
+		if err != nil {
 			return err
 		}
-		NewFileInformation(&fileInfo)
 	}
 
 	return nil
 }
 
-func EndJsonFile(file *os.File) error {
+func registerNewFileEntry(fileInfo FileInformation) FileInformation {
+	return updateFileInformation(fileInfo.entriesWritten+1, fileInfo.fileNumber, fileInfo.jsonFile, false)
+}
 
+func hasReachedMaxEntries(entriesWritten int) bool {
+	return entriesWritten >= maxEntriesPerJson
+}
+
+func changeFileForNextEntries(fileInfo FileInformation) (FileInformation, error) {
+	if err := endJsonFile(fileInfo.jsonFile); err != nil {
+		return fileInfo, err
+	}
+
+	return updateFileInformation(0, fileInfo.fileNumber+1, nil, true), nil
+}
+func endJsonFile(file *os.File) error {
 	defer file.Close()
 
-	if err := json_manager.FinishFile(file); err != nil {
+	return json_manager.FinishFile(file)
+}
+
+func newFileInformation() FileInformation {
+	return FileInformation{
+		entriesWritten: 0,
+		fileNumber:     0,
+		jsonFile:       nil,
+		isFirstEntry:   true,
+	}
+}
+
+func updateFileInformation(entriesWritten int, fileNumber int, jsonFile *os.File, isFirstEntry bool) FileInformation {
+	return FileInformation{
+		entriesWritten: entriesWritten,
+		fileNumber:     fileNumber,
+		jsonFile:       jsonFile,
+		isFirstEntry:   isFirstEntry,
+	}
+}
+
+func createJsonEmailAndWriteToFile(tarReader *tar.Reader, fileInfo *FileInformation) error {
+	jsonEmail, err := createJsonEmail(tarReader)
+	if err != nil {
 		return err
 	}
 
-	return nil
+	if fileInfo.isFirstEntry == false {
+		if err = file.SeparateNewEntryWithComma(fileInfo.jsonFile); err != nil {
+			return err
+		}
+	}
+
+	return file.WriteEmailToFile(jsonEmail, fileInfo.jsonFile)
+
 }
 
-func NewFileInformation(fileInfo *FileInformation) {
-
-	fileInfo.entriesWritten = 0
-	fileInfo.fileNumber = fileInfo.fileNumber + 1
-	fileInfo.isFirstEntry = true
-	fileInfo.jsonFile = nil
-}
-
-func HandleFile(tarReader *tar.Reader, fileInfo *FileInformation) error {
+func createJsonEmail(tarReader *tar.Reader) (jsonEmail []byte, err error) {
 	fileContent, err := file.ReadFileContent(tarReader)
-
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	email, err := email.FileContentToEmail(string(fileContent))
-
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	jsonEmail, err := json_manager.EmailToJson(email)
-
-	if err != nil {
-		return err
-	}
-
-	if err := file.WriteEmailToFile(jsonEmail, &fileInfo.isFirstEntry, fileInfo.jsonFile); err != nil {
-		return err
-	}
-
-	return nil
+	return json_manager.EmailToJson(email)
 }
 
-func HandleBadFile(tarReader *tar.Reader, tarHeader *tar.Header) error {
+func handleEmailError(tarReader *tar.Reader, tarHeader *tar.Header) error {
 	fileContent, err := file.ReadFileContent(tarReader)
 
 	if err != nil {
 		return err
 	}
 
-	if err := file.StoreMalformedFile(tarHeader, fileContent); err != nil {
-		return err
-	}
-
-	return nil
+	return file.StoreMalformedFile(tarHeader, fileContent)
 }
