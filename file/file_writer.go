@@ -3,6 +3,7 @@ package file
 import (
 	"Indexer/json_manager"
 	"archive/tar"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -11,31 +12,41 @@ import (
 const malformedFilesDir = "./MalformedEmails/"
 const indexEmailsDir = "./IndexEmails/emails"
 
-func WriteEmailToFile(json []byte, isFirstFile *bool, jsonFile *os.File) error {
-	if *isFirstFile == true {
-		*isFirstFile = false
-	} else if _, err := jsonFile.Write([]byte(",\n")); err != nil {
-		return err
-	}
+func WriteEmailToFile(json []byte, jsonFile *os.File) error {
 
 	if _, err := jsonFile.Write(json); err != nil {
+		fmt.Println("Write email to file failed")
 		return err
 	}
 
 	return nil
 }
 
-func CreateJsonFile(fileNumber int) (*os.File, error) {
+func SeparateNewEntryWithComma(jsonFile *os.File) error {
+	if _, err := jsonFile.Write([]byte(",\n")); err != nil {
+		fmt.Println("Add new line to file failed")
+		return err
+	}
+
+	return nil
+}
+
+func CreateJsonFile(fileNumber int, jsonFile *os.File) (*os.File, error) {
+	if jsonFile != nil {
+		return jsonFile, nil
+	}
 
 	fileDir, err := filepath.Abs(indexEmailsDir + strconv.Itoa(fileNumber) + ".ndjson")
 
 	if err != nil {
+		fmt.Println("Find JSON filepath failed")
 		return nil, err
 	}
 
-	jsonFile, err := os.Create(fileDir)
+	jsonFile, err = os.Create(fileDir)
 
 	if err != nil {
+		fmt.Println("Create JSON failed")
 		return nil, err
 	}
 
@@ -51,18 +62,21 @@ func StoreMalformedFile(tarHeader *tar.Header, fileContent []byte) error {
 	fileDir, err := filepath.Abs(malformedFilesDir + tarHeader.FileInfo().Name())
 
 	if err != nil {
+		fmt.Println("Find malformed emails filepath failed")
 		return err
 	}
 
 	file, err := os.Create(fileDir)
 
 	if err != nil {
+		fmt.Println("Create malformed email file failed")
 		return err
 	}
 
 	_, err = file.Write(fileContent)
 
 	if err != nil {
+		fmt.Println("Write content of malformed file failed")
 		return err
 	}
 
@@ -72,10 +86,11 @@ func StoreMalformedFile(tarHeader *tar.Header, fileContent []byte) error {
 }
 
 func CreateProfileFile(fileName string) (*os.File, error) {
-	f, err := os.Create(fileName)
+	profileFile, err := os.Create(fileName)
 
 	if err != nil {
 		return nil, err
 	}
-	return f, nil
+
+	return profileFile, nil
 }
