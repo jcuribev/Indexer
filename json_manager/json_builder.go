@@ -3,6 +3,7 @@ package json_manager
 import (
 	"Indexer/email"
 	"encoding/json"
+	"fmt"
 	"os"
 )
 
@@ -10,6 +11,7 @@ func InitFile(jsonFile *os.File) error {
 	_, err := jsonFile.WriteString(`{ "index" : "emails", "records": [` + "\n")
 
 	if err != nil {
+		fmt.Println("Initialize File Failed")
 		return err
 	}
 
@@ -18,6 +20,7 @@ func InitFile(jsonFile *os.File) error {
 
 func FinishFile(jsonFile *os.File) error {
 	if _, err := jsonFile.WriteString(`]}`); err != nil {
+		fmt.Println("Finish file failed")
 		return err
 	}
 
