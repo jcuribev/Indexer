@@ -34,7 +34,6 @@ func FileContentToEmail(fileContent string) (Email, error) {
 	message, err := mail.ReadMessage(reader)
 
 	if message == nil {
-		fmt.Print(err)
 		return Email{}, err
 	}
 
