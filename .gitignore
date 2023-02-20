@@ -4,3 +4,4 @@ MalformedEmails/
 enron_mail_20110402.tgz
 cpu.prof
 mem.prof
+goroutine
